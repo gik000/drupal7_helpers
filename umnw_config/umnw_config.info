@@ -1,0 +1,6 @@
+name = UMNW Config
+description = UMNW configuration panel
+package = UMNW
+author = UnMoscerinoNelWeb
+core = 7.x
+

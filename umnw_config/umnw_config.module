@@ -1,0 +1,22 @@
+<?php
+
+
+/**
+ * Implements hook_menu().
+ */
+function umnw_config_menu() {
+  $items = array();
+
+  $items['admin/config/umnw'] = array(
+    'title' => 'UMNW configuration',
+    'description' => 'Configuration panel for UMNW modules',
+    'position' => 'left',
+    'weight' => -100,
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('access administration pages'),
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+
+  return $items;
+}

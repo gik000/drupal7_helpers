@@ -1,0 +1,10 @@
+<?php
+
+/**
+* Implements hook_preprocess().
+*/
+function umnw_imagesloaded_preprocess(&$variables, $hook) {
+  $path2imagesloaded = libraries_get_path('imagesloaded');
+  drupal_add_js($path2imagesloaded.'/imagesloaded.pkgd.min.js',array('scope' => 'header'));
+}
+

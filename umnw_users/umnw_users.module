@@ -1,0 +1,13 @@
+<?php
+
+/**
+ * implements hook menu
+ */
+function umnw_users_menu(){
+  $items['user/logout'] = array(
+    'title' => t('Logout'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 20
+  );
+  return $items;
+}

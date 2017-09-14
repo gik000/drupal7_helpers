@@ -1,0 +1,389 @@
+<?php
+
+
+/**
+ * Implements hook_menu().
+ */
+function umnw_helpers_menu() {
+  $items = array();
+
+  $items['admin/config/umnw_helpers'] = array(
+    'title' => 'UMNW config section',
+    'description' => 'Un Moscerino Nel Web Helpers section',
+    'position' => 'left',
+    'weight' => -100,
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('administer site configuration'),
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+
+  $items['admin/config/umnw_helpers/thumbs_generate'] = array(
+    'title' => 'Thumbs generate',
+    'description' => t('manually generate thumbs'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('umnw_helpers_thumbs_generate_form'),
+    'access arguments' => array('administer site configuration'),
+  );
+
+  return $items;
+}
+
+function umnw_helpers_thumbs_generate_form($form,$form_state){
+  $items = array();
+  //getting all styles name
+  $options = _umnw_helpers_get_options_styles();
+  $items['styles'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Image styles'),
+    '#description' => t('Choose the image styles to generate thumbnails'),
+    '#options' => $options,
+  );
+  $items['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Generate'),
+  );
+
+  return $items;
+}
+
+function umnw_helpers_thumbs_generate_form_submit($form,&$form_state){
+  //collecting chosen styles
+  $styles = $form_state['values']['styles'];
+  //preparing array
+  foreach($styles as $id => $value){
+    if($id === $value){
+      //it means we have chosen this style
+      $chosen_styles[$id] = $value;
+    }
+  }
+  //invoking thumbs generation
+  if(isset($chosen_styles)){
+    _umnw_helpers_generate_thumbs($chosen_styles);
+    drupal_set_message(t('Thumbs successfully generated'));
+  } else {
+    drupal_set_message(t('You must at least one style'));
+  }
+}
+
+
+/**
+ * Check if $that is set, if so return $that
+ * otherwise return NULL
+ *
+ * @param $that
+ *
+ * @return null
+ */
+function _umnw_helpers_that_or_null(&$that){
+  return isset($that) ? $that : NULL;
+}
+
+/**
+ * @param $form - The form passed by reference
+ * @param $elements - an array with all fields id to hide
+ *
+ * Disable will show the field, but users won't be able to change the value in it.
+ * #access = FALSE will not output the field to the browser
+ * hidden will create an <input> field of type 'hidden'. It will be sent to the browser, and will be editable, but it won't be visible.
+ * element-invisible will output the field to the browser, but it will be hidden through CSS
+ *
+ */
+function _umnw_helpers_hide_form_element(&$form, $elements){
+  foreach($elements as $element){
+    $form[$element]['#prefix'] = "<div style='display:none;'>";
+    $form[$element]['#suffix'] = "</div>";
+
+  }
+}
+function _umnw_helpers_readonly_form_element(&$form, $elements){
+  //TODO test $form['field_myform']['#disabled']= TRUE;
+  foreach($elements as $element){
+    //$form[$element][LANGUAGE_NONE][0]['value']['#attributes']['readonly'] = 'readonly';
+    $form[$element]['#disabled'] = TRUE;
+  }
+}
+function _umnw_helpers_unset_form_element(&$form, $elements){
+  foreach($elements as $element){
+    //unset($form[$element]);
+    $form[$element]['#access'] = FALSE;
+  }
+}
+function _umnw_helpers_unset_field_entity(&$entity, $elements){
+  foreach($elements as $element){
+    unset($entity->$element);
+  }
+}
+function _umnw_helpers_remove_all_but_fields(&$entity, $elements){
+  foreach($entity as $key => $value){
+    if (strpos($key,'field_') !== false) {
+      if(!in_array($key,$elements)){
+        _umnw_helpers_unset_field_entity($entity,array($key));
+      }
+    }
+  }
+}
+
+/**
+ * checks if the current user is administrator
+ */
+function _umnw_is_administrator(){
+  global $user;
+  if($user->uid == 1){
+    return true;
+  } else {
+    return false;
+  }
+}
+/**
+ * checks if the current user has the role of manager
+ */
+function _umnw_is_manager(){
+  $roles = array(
+    'manager',
+  );
+
+  foreach($roles as $role){
+    if(_umnw_has_role($role)){
+      return true;
+    }
+  }
+  return false;
+}
+/**
+ * checks if the current user has the role of super user
+ */
+function _umnw_is_super_user(){
+  $roles = array(
+    'super user',
+  );
+
+  foreach($roles as $role){
+    if(_umnw_has_role($role)){
+      return true;
+    }
+  }
+  return false;
+}
+/**
+ * checks if the current user has a role
+ */
+function _umnw_has_role($role, $account = null){
+  if($account == null){
+    global $user;
+  } else {
+    $user = $account;
+  }
+
+  if(in_array($role,$user->roles)){
+    return true;
+  } else {
+    return false;
+  }
+}
+
+/**
+ * @param $roles
+ * @return bool
+ * Define access callback
+ */
+function _umnw_has_roles($roles) {
+  if (user_is_logged_in()) {
+    global $user;
+    foreach ($roles as $role) {
+      if (in_array($role, $user->roles)) {
+        return TRUE;
+      }
+    }
+  }
+  else {
+    return FALSE;
+  }
+}
+
+
+
+
+/**
+ * This function let you extract database data without using entities functionality
+ * The aim of this function is to offer a lightweight alternative to entity_load in case you need one or few fields.
+ * @param string $table_name
+ * @param string/array $field_name
+ * @param array $filter_fields - array of field_name and field_values (strings)
+ *
+//EXAMPLE - HOW TO
+$filters = array(
+'entity_type' => 'reference_table',
+'bundle' => 'reference_table',
+'entity_id' => 20
+);
+$res = umnw_extract_db_fields('field_data_field_type', 'field_type_value', $filters);
+ *
+ */
+function umnw_extract_db_fields($table_name, $field_name, $filter_fields){
+  //checking data
+  if($table_name == '' || count($filter_fields) == 0 || ((is_string($field_name) && $field_name == '') || (is_array($field_name) && empty($field_name)))){
+    //exit condition matched
+    return false;
+  }
+  else {
+    //checking if is necessary to extract more then one field
+    $fiels2take = "";
+    if(is_string($field_name)){
+      $fiels2take = 't.'.$field_name.' ';
+    } elseif(is_array($field_name)){
+      foreach($field_name as $name){
+        $fiels2take .= 't.'.$name.',';
+      }
+      removeLastComma($fiels2take);
+    }
+    //preparing query text
+    $query = 'SELECT '.$fiels2take.' FROM {'.$table_name.'} t WHERE ';
+    //declaring array with filters
+    $values_matching = array();
+    //cycling filters and build WHERE clause
+    foreach($filter_fields as $name => $value){
+      $query .= 't.'.$name.' = :'.$name.' AND ';
+      $values_matching[':'.$name] = $value;
+    }
+    //removing last "AND "
+    $query = substr($query,0,-4);
+    //executing query
+    $results = db_query($query, $values_matching);
+    //declaring array with results
+    $ret = array();
+    // Result is returned as a iterable object that returns an array
+    while ($record = $results->fetchAssoc()) {
+      //putting records in return array
+      $ret += $record;
+    }
+    return $ret;
+  }
+}
+
+/**
+ * Return an entity view (html
+ *
+ * @param $id
+ * @param $entity_type
+ * @param string $view_mode
+ *
+ * @return string
+ */
+function _umnw_load_entity_view($id, $entity_type, $view_mode = 'full'){
+  //init return value
+  $entity = null;
+  //checking pre conditions
+  if(is_numeric($id) && $id > 0){
+    $e = entity_load_single($entity_type,$id);
+    $ev = entity_view($entity_type, array($e), $view_mode, $langcode = NULL, $page = NULL);
+  }
+  //return entity view
+  return $ev;
+
+}
+
+
+function _umnw_is_entity_page($entity_type,$bundle){
+  if(arg(0) == $entity_type && arg(1) == $bundle){
+    return true;
+  } else {
+    return false;
+  }
+}
+
+
+
+/**
+ * redirect to specific path
+ * @param $path
+ * @param array $params
+ * EXAMPLE OF PARAMS
+ *
+  $params = array(
+  'arg' => array(
+  'number' => 4,
+  'checks' => array("isset"),
+  ),
+  'value' => 1
+  );
+ *
+ */
+function _umnw_redirect($path, $params){
+  $added_args = array();
+  foreach($params as $type => $arg){
+    switch($type){
+      case 'value':
+        $added_args[] = $arg;
+        break;
+      case 'arg':
+        if(isset($arg['checks'])){
+          $val = arg($arg['number']);
+          foreach($arg['checks'] as $check){
+            if(function_exists($check) && $check($val)){
+              $added_args[] = $val;
+            }
+          }
+        }
+    }
+  }
+  if(!empty($added_args)){
+    $args = implode('/',$added_args);
+    $path .= '/'.$path;
+  }
+  drupal_goto($path);
+}
+
+/**
+ * If styles is not passed to the function this will generate
+ * images for all available styles
+ * @param null $styles
+ */
+function _umnw_helpers_generate_thumbs($styles = null){
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'file')
+        ->entityCondition('bundle', 'image');
+
+
+  $result = $query->execute();
+  if(isset($result['file'])){
+    //getting all styles
+    if(is_null($styles)){
+      $styles = image_styles();
+    } else {
+      $styles = _umnw_helpers_get_options_styles();
+    }
+    //init array of result
+    $file_created = array();
+    //loop on files
+    foreach($result['file'] as $fid => $file){
+      foreach($styles as $styleId => $styleName){
+        $file = file_load($fid);
+        $uri = $file->uri;
+        $url = image_style_url($styleId, $uri);
+        $file_created[$fid] = $url;
+      }
+    }
+  }
+  //printing results
+  if(function_exists('dpm')){
+    dpm($file_created);
+  } else {
+    print_r($file_created);
+  }
+}
+
+/**
+ * getting image styles as options
+ */
+function _umnw_helpers_get_options_styles(){
+  //getting all image styles
+  $available_styles = image_styles();
+  foreach($available_styles as $style){
+    //preparing options array
+    $optionId = $style['name'];
+    $optionValue = $style['label'];
+    $options[$optionId] = $optionValue;
+  }
+  return $options;
+}

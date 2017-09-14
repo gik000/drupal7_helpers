@@ -1,0 +1,21 @@
+<?php
+
+/**
+ * Implements hook_init().
+ */
+function umnw_moment_init() {
+  // Do not load colorbox during the Drupal installation process, e.g. if part
+  // of installation profiles.
+  if (!drupal_installation_attempted()) {
+    _umnw_moment_add_js();
+  }
+}
+
+/**
+ * Adds js files
+ */
+function _umnw_moment_add_js(){
+  $path2moment = libraries_get_path('moment');
+  drupal_add_js($path2moment.'/min/moment.min.js');
+  drupal_add_js($path2moment.'/min/moment-with-locales.min.js');
+}

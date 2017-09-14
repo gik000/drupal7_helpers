@@ -1,0 +1,11 @@
+name = UMNW helpers
+description = Helper functions collection
+package = UMNW
+author = UnMoscerinoNelWeb
+core = 7.x
+
+version = "7.x-1.0"
+core = "7.x"
+project = "umnw_helpers"
+
+;dependencies[] = eck_custom_crud

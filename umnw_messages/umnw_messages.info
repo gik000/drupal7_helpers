@@ -1,0 +1,10 @@
+name = UMNW Messages management
+description = Manage messages
+package = UMNW
+author = UnMoscerinoNelWeb
+core = 7.x
+
+
+dependencies[] = umnw_config
+dependencies[] = eck
+

@@ -1,0 +1,91 @@
+<?php
+
+/**
+ * Implements hook_entity_view().
+ */
+function addtoany_extend_entity_view($entity, $type, $view_mode, $langcode) {
+  $bundles = variable_get('addtoany_'.$type.'_bundles', array());
+  $view_modes = variable_get('addtoany_'.$type.'_view_mode', array());
+  $section = variable_get('addtoany_'.$type.'_section', array());
+
+  $type = isset($entity->content['#bundle']) ? $bundles[$entity->content['#bundle']] : $bundles[$entity->type];
+  $show =  (!empty($type) && !empty($view_modes[$view_mode]) && user_access('view addtoany'));
+
+  // Fix addtoany module implementation with hook_node_view() unsetting already defined elements.
+  unset($entity->content['addtoany']);
+  unset($entity->content['links']['#links']['addtoany']);
+
+  if($show) {
+    // Link Section
+    if($section) {
+      $entity->content['links']['#links']['addtoany'] = array(
+        'title' => addtoany_create_entity_buttons($entity, $type),
+        'html' => TRUE,
+      );
+      // Content Section
+    } else {
+      $weight = variable_get('addtoany_'.$type.'_section_weight');
+      $entity->content['addtoany'] = array(
+        '#markup' => addtoany_create_entity_buttons($entity, $type),
+        '#weight' => $weight,
+      );
+
+    }
+  }
+}
+
+/**
+ * Implements hook_permission().
+ */
+function addtoany_extend_permission() {
+  return array(
+    'view addtoany' => array(
+      'title' => t('View addtoany share link'),
+      'description' => t('Allow to view and use share link of addtoany type.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_entity_view_alter().
+ */
+function addtoany_extend_entity_view_alter(&$build, $type) {}
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter().
+ */
+function addtoany_extend_form_addtoany_admin_settings_alter(&$form, &$form_state, $form_id) {
+  module_load_include('inc', 'addtoany_extend', 'addtoany_extend.admin');
+  $entities_form = addtoany_entities_form();
+
+  $form['addtoany_placement_settings'] = array(
+    '#type'  => 'fieldset',
+    '#title' => t('Display'),
+    '#collapsible'  => TRUE,
+    '#collapsed'    => TRUE,
+  );
+
+  $form['addtoany_placement_settings']['addtoany_entities'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Entities'),
+    '#collapsible'  => TRUE,
+    '#collapsed'    => TRUE,
+  );
+
+  $form['addtoany_placement_settings']['addtoany_entities'] = array_replace($form['addtoany_placement_settings']['addtoany_entities'], $entities_form);
+}
+
+/**
+ * Generate code for AddToAny buttons for a node.
+ *
+ * @param object $node
+ *   The node object to create the buttons for.
+ *
+ * @return string
+ *   The HTML code for the buttons.
+ */
+function addtoany_create_entity_buttons($entity, $type) {
+  $url = entity_uri($type, $entity);
+  $title = isset($entity->title) ? $entity->title : NULL;
+  return addtoany_create_buttons($url['path'], $title);
+}

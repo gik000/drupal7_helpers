@@ -1,0 +1,67 @@
+<?php
+
+/**
+ * Implements hook_entity_info_alter().
+ */
+function eck_custom_crud_entity_info_alter(&$entity_info) {
+  // Alter the Entity CRUD Paths.
+  $eck_entity_types = eck_custom_crud_get_entity_types();
+  $crud = array('view', 'add', 'edit', 'delete');
+  foreach ($eck_entity_types as $eck_entity_type => $eck_entity_type_bundles) {
+    if($entity_info[$eck_entity_type]['module']=='eck'){
+      foreach ($eck_entity_type_bundles as $eck_bundle) {
+        foreach ($crud as $op) {
+          $info = &$entity_info[$eck_entity_type]['bundles'][$eck_bundle]['crud'];
+          switch ($op) {
+            case 'add';
+              $info[$op]['path'] = $eck_entity_type . '/' . $eck_bundle . '/add';
+              break;
+            case 'view':
+              $info[$op]['path'] = $eck_entity_type . '/' . $eck_bundle . '/%eckentity';
+              $info[$op]['entity_id'] = 2;
+              break;
+            case 'edit':
+            case 'delete':
+              $info[$op]['path'] = $eck_entity_type . '/' . $eck_bundle . '/%eckentity/' . $op;
+              $info[$op]['entity_id'] = 2;
+              break;
+          }
+        }
+      }
+    }
+  }
+}
+/**
+ * Helper function to get the entity types of eck module.
+ */
+function eck_custom_crud_get_entity_types() {
+  $eck_entity_types = &drupal_static(__FUNCTION__, array());
+  if (count($eck_entity_types) == 0) {
+    foreach (EntityType::loadAll() as $eck_entity_type) {
+      foreach (Bundle::loadByEntityType($eck_entity_type) as $eck_bundle) {
+        $eck_entity_types[$eck_entity_type->name][] = $eck_bundle->name;
+      }
+    }
+  }
+
+  return $eck_entity_types;
+}
+
+/**
+ * Let's developer use preprocess function on entities
+ * Create an hook function like hook_eck_preprocess(&$variables, $hook)
+ * reference http://drupal.stackexchange.com/questions/64751/how-to-define-entity-preprocess-function
+ * @param $variables
+ * @param $hook
+ */
+function eck_custom_crud_preprocess(&$variables, $hook) {
+  if (isset($variables['elements']['#entity_type'])) { // or maybe check for $hook name
+    //$function = __FUNCTION__ . '_' . $variables['elements']['#entity_type'];
+    foreach (module_implements('eck_preprocess') as $moduleName) {
+      $function = $moduleName . '_eck_preprocess';
+      if (function_exists($function)) {
+        $function($variables, $hook);
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+name = Local task themer
+description = Extends the MENU_LOCAL_ACTION menu item, giving the possibility to get 'options'
+package = UMNW
+core = 7.x
+

@@ -1,0 +1,10 @@
+name = UMNW moment
+description = Help moment module (moment.js) to work!
+package = UMNW
+author = UnMoscerinoNelWeb
+core = 7.x
+
+version = "7.x-1.0"
+core = "7.x"
+project = "umnw_moment"
+

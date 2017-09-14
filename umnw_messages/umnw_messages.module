@@ -1,0 +1,271 @@
+<?php
+
+
+/**
+ * Implementing hook_menu
+ */
+function umnw_messages_menu(){
+  $items = array();
+
+  $items["admin/config/umnw/messages"] = array(
+    "title" => t('Messages Configuration and management'),
+    "description" => t('Manage and configure system messages.'),
+    "page callback" => "drupal_get_form",
+    "page arguments" => array("umnw_messages_configuration_management_form"),
+    "access arguments" => array('UMNW messages config administration'),
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function umnw_messages_permission() {
+  return array(
+    'UMNW messages config administration' => array(
+      'title' => t('UMNW messages configuration and management'),
+      'description' => t('Grants access to UMNW messages configuration and management.'),
+    ),
+    'UMNW view debug messages' => array(
+      'title' => t('Debug message'),
+      'description' => t('This is used to show debug messages'),
+    ),
+  );
+}
+
+/**
+ * Hook form
+ * 
+ * @param $form
+ *
+ * @return array
+ */
+function umnw_messages_configuration_management_form($form){
+  $form = array();
+  $def_vals = variable_get("umnw_messages",array());
+  
+  $form["preface"] = array(
+    '#markup' => t("This is UMNW Messages control room"),
+  );
+  $form["umnw_messages"]["umnw_message_filter"] = array(
+    '#type' => 'checkbox', 
+    '#title' => t('Filter messages'),
+    '#description' => t('Field checked means the filter is active'),
+    '#default_value' => isset($def_vals["umnw_message_filter"])?$def_vals["umnw_message_filter"]:0,
+  );
+  $form["umnw_messages"]["umnw_message_filter_devel"] = array(
+    '#type' => 'checkbox', 
+    '#title' => t('Hide Devel messages'),
+    '#description' => t('Check the box if you want to hide Devel module messages'),
+    '#default_value' => isset($def_vals["umnw_message_filter_devel"])?$def_vals["umnw_message_filter_devel"]:0,
+  );
+  $form["umnw_messages"]["umnw_message_filter_errors"] = array(
+    '#type' => 'checkbox', 
+    '#title' => t('Hide error messages'),
+    '#description' => t('Field checked means that error messages will not shown'),
+    '#default_value' => isset($def_vals["umnw_message_filter_errors"])?$def_vals["umnw_message_filter_errors"]:0,
+  );
+  $form["umnw_messages"]["umnw_message_filter_text"] = array(
+    '#type' => 'fieldset', 
+    '#title' => t('Text filtering'),
+  );
+  $form["umnw_messages"]["umnw_message_filter_text"]["umnw_message_filter_text_disallowed"] = array(
+    '#type' => 'checkbox', 
+    '#title' => t('Text disallowed'),
+    '#description' => t('Check to activate filter'),
+    '#default_value' => isset($def_vals["umnw_message_filter_text_disallowed"])?$def_vals["umnw_message_filter_text_disallowed"]:0,
+  );
+
+  $stringhe_escluse='';
+  $strings = isset($def_vals["umnw_message_filter_text_disallowed_strings"])?$def_vals["umnw_message_filter_text_disallowed_strings"]:0;
+  if($strings!='') foreach($strings as $v){
+    $stringhe_escluse.=$v."\n";
+  }
+  $form["umnw_messages"]["umnw_message_filter_text"]["umnw_message_filter_text_disallowed_strings"] = array(
+    '#type' => 'textarea', 
+    '#title' => t('Strings disallowed'),
+    '#description' => t('One word or sentence for each row without commas. Messages containing the word (or sentence) will be hidden.'),
+    '#default_value' => $stringhe_escluse,
+  );
+  $form["umnw_messages"]["submit"] = array(
+    '#type' => 'submit', 
+    '#value' => t('Submit'),
+  );
+  return $form;
+}
+
+/**
+ * Form submit
+ * @param $form
+ * @param $form_state
+ */
+function umnw_messages_configuration_management_form_submit($form, &$form_state){
+  if(($stringhe_escluse = trim($form_state["values"]["umnw_message_filter_text_disallowed_strings"]," \r\n")) && $stringhe_escluse!=''){
+    //$url_escluse = str_replace("\t","",$url_escluse);
+    $stringhe = explode("\n",trim($stringhe_escluse));
+    $form_state["values"]["umnw_message_filter_text_disallowed_strings"] = $stringhe;
+  }
+  variable_set("umnw_messages",$form_state["values"]);
+  drupal_set_message(t('Configuration saved.'));
+}
+
+
+/**
+ * Implements hook_theme_registry_alter().
+ */
+function umnw_messages_theme_registry_alter(&$theme_registry) {
+  $theme_registry['status_messages']['function'] = 'umnw_messages_status_messages';
+  $theme_registry['status_messages']['theme path'] = drupal_get_path('module','umnw_messages');
+}
+
+
+
+
+/**
+ * Scandaglia i messaggi di sistema e li ridefinisce
+ * La funzione invoca anche is_umnw_message per controllare se il messaggio e' generato dal tool
+ * @param $vars
+ */
+function umnw_messages_status_messages($vars){
+  //$messages = $vars['messages'];
+  $messages = drupal_get_messages($vars["display"]);
+  $output = '';
+  $status_heading = array(
+      'status' => t('Status message'),
+      'error' => t('Error message'),
+      'warning' => t('Warning message'),
+  );
+  //eseguo la raccolta di tutti i messaggi che escono come TRUE dalla funzione is_umnw_message
+  $valid_msg = array();
+  foreach ($messages as $type => $arr_messages) {
+    if (count($arr_messages) >= 1) {
+      foreach ($arr_messages as $message) {
+        if( is_umnw_message($message, $type)){
+          $valid_msg[$type][] = $message;
+        } else {
+          continue;
+        }
+      }
+    }
+  }
+  foreach($status_heading as $type => $v){
+    if(!empty($valid_msg[$type])){
+      $output .= "<div class=\"messages $type\"><h2 class=\"element-invisible\">' . $status_heading[$type] . '</h2><ul>%s</ul></div>";
+      $temp = "";
+      foreach($valid_msg[$type] as $v){
+        $temp .= "<li>$v</li>";
+      }
+      $output = sprintf($output, $temp);
+    }
+  }
+  return $output;
+}
+/**
+ * Questa funzione e' associata all'hook theme_sattus_message
+ * e serve a verificare se un messaggio e' generato dal tool
+ * @param $message
+ */
+function is_umnw_message(&$message,$type) {
+  $messages_settings = variable_get("umnw_messages",array());
+  $devel_disabled = $messages_settings['umnw_message_filter_devel'];
+  $errors_disabled = $messages_settings['umnw_message_filter_errors'];
+  $text_disallowed = $messages_settings['umnw_message_filter_text_disallowed'];
+  $disallowed_strings = $messages_settings['umnw_message_filter_text_disallowed_strings'];
+  //message filter active
+  if($messages_settings['umnw_message_filter']){
+    $start = substr($message,0,16);
+    $first = substr($message,0,1);
+    if($first=="~"){
+      $message = str_replace("~ ","",$message);
+      return true;
+    } elseif(($type=="error" || $type=="warning")){
+      if($errors_disabled) return false;
+      else return true;
+    } elseif($start=="<!-- Using Krumo" || $first == "<"){
+      if($devel_disabled) return false;
+      else return true;
+    } elseif($text_disallowed && is_array($disallowed_strings) && !empty($disallowed_strings)){
+      $found = false;
+      foreach($disallowed_strings as $k=>$v){
+        if(!$found){
+          $subject = $message;
+          $misc_subject = explode(' ',$subject);
+          if(in_array(trim($v),$misc_subject)){
+            $found = true;
+          }
+          else {
+            $found = false;
+          }
+        }
+      }
+      return ($found===0 || $found===false)?true:false;
+    } else {
+      //se il filtraggio testo E' abilitato MA non rientro in alcuna categoria debbo nascondere il messaggio ritornando false
+      return false;
+    }
+  } else {
+    //se il filtraggio testo NON e' abilitato
+    //allora ritorno true
+    return true;
+  }
+}
+
+/**
+ * An alias function
+ * @param $msg
+ * @param string $status
+ * @param string $id
+ */
+function _umnw_set_message($msg, $status='status',$id="generic"){
+  umnw_messages_set_message($msg, $status,$id);
+}
+
+/**
+ * wrapper per i messaggi 
+ * @param $msg - puo' essere una stringa o un array di questo tipo array("warning"=>array(0=>"messaggio0",1=>"messaggio1"),"error"=>array(0=>"errore0",1=>"errore1"))
+ * @param string $status - ignorato se $msg e' un array
+ */
+function umnw_messages_set_message($msg, $status='status',$id="generic"){
+  if(is_string($msg)){ //nel caso di stringa stampo la stringa
+    if($status == 'debug' && user_access('debug message')){
+      $status = 'status';
+    }
+    drupal_set_message("~ ".$msg,$status);
+    if($status == "warning" || $status == "error"){
+      watchdog($id, $msg, array(), WATCHDOG_CRITICAL);
+    }
+  } elseif(is_array($msg)){ //nel caso di messaggi multipli li stampo con due cicli annidati
+    foreach($msg as $status => $v){
+      if($status == 'debug' && user_access('debug message')){
+        $status = 'status';
+      }
+      foreach($v as $id => $text){
+        drupal_set_message("~ ".$text,$status,$id);
+      }
+    }
+  }
+}
+
+/**
+ * Alias for dpm functions
+ * @param $input
+ */
+function _umnw_dpm($input){
+  if(function_exists ("dpm")){
+    if(is_array($input) || is_object($input)){
+      dpm($input);
+    } elseif(is_string($input)){
+      _umnw_set_message($input);
+    }
+  } else {
+    _umnw_set_message(var_export($input,true));
+  }
+}
+
+
+/**
+ * Implements hook_eck_entity_save_message_alter().
+ */
+function umnw_messages_eck_entity_save_message_alter(&$msg, $args, $context) {
+  $msg = t('Your save has been successful');
+}

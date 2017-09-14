@@ -1,0 +1,48 @@
+<?php
+
+function _umnw_local_task_menu_local_action($variables) {
+  $link = $variables ['element']['#link'];
+
+  $output = '<li>';
+  if (isset($link ['href'])) {
+    if(strpos($link['href'],'archive') !== FALSE){
+      //ARCHIVE LINK - ACTION LINK
+      $archiveOptions = array(
+        'attributes' => array(
+          'class' => array(
+            'action-link-archive',
+          )
+        )
+      );
+      //occasionally merging the $archiveOptions with 'localized_options'
+      if(isset($link ['localized_options'])){
+        $link ['localized_options'] = array_merge($link['localized_options'],$archiveOptions);
+      } else {
+        $link ['localized_options'] = $archiveOptions;
+      }
+      //setting $link_prefix
+      $link_prefix = l('<span class="fa fa-archive"></span>',$link ['href'],array('html'=>TRUE));
+      $output .= $link_prefix . ' ';
+    }
+    $output .= l($link ['title'], $link ['href'], isset($link ['localized_options']) ? $link ['localized_options'] : array());
+  }
+  elseif (!empty($link ['localized_options']['html'])) {
+    $output .= $link ['title'];
+  }
+  else {
+    $output .= check_plain($link ['title']);
+  }
+  $output .= "</li>\n";
+
+  return $output;
+}
+
+/**
+ * Implements hook_theme_registry_alter().
+ */
+function umnw_local_task_theme_registry_alter(&$theme_registry) {
+  $theme_registry['menu_local_action']['function'] = '_umnw_local_task_menu_local_action';
+  $theme_registry['menu_local_action']['includes'] = array();
+  $theme_registry['menu_local_action']['theme path'] = drupal_get_path('module','umnw_local_task');
+
+}
